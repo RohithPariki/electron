@@ -218,14 +218,16 @@ const messageBox = (sync: boolean, window: BaseWindow | null, options?: MessageB
 
   // AbortSignal processing.
   let id: number | undefined;
+  let onAbort: (() => void) | undefined;
   if (signal) {
     // Generate an ID used for closing the message box.
     id = getNextId();
     // Close the message box when signal is aborted.
     if (signal.aborted) {
-      return Promise.resolve({ cancelId, checkboxChecked });
+      return sync ? cancelId : Promise.resolve({ response: cancelId, checkboxChecked });
     }
-    signal.addEventListener('abort', () => dialogBinding._closeMessageBox(id));
+    onAbort = () => dialogBinding._closeMessageBox(id!);
+    signal.addEventListener('abort', onAbort, { once: true });
   }
 
   const settings = {
@@ -248,7 +250,13 @@ const messageBox = (sync: boolean, window: BaseWindow | null, options?: MessageB
   if (sync) {
     return dialogBinding.showMessageBoxSync(settings);
   } else {
-    return dialogBinding.showMessageBox(settings);
+    const messageBoxPromise = dialogBinding.showMessageBox(settings);
+    if (signal && onAbort) {
+      return messageBoxPromise.finally(() => {
+        signal.removeEventListener('abort', onAbort!);
+      });
+    }
+    return messageBoxPromise;
   }
 };
 

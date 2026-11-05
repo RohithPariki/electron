@@ -152,6 +152,45 @@ describe('dialog module', () => {
   describe('showMessageBox with signal', () => {
     afterEach(closeAllWindows);
 
+    it('returns the cancel response when the signal is already aborted', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const w = new BrowserWindow();
+      const result = await dialog.showMessageBox(w, {
+        signal: controller.signal,
+        message: 'aborted test',
+        buttons: ['OK', 'Cancel'],
+        cancelId: 1
+      });
+      expect(result).toEqual({ response: 1, checkboxChecked: false });
+    });
+
+    it('returns the cancel response and checkboxChecked state when already aborted', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const result = await dialog.showMessageBox({
+        signal: controller.signal,
+        message: 'aborted test',
+        buttons: ['Yes', 'No'],
+        checkboxLabel: 'Remember my choice',
+        checkboxChecked: true,
+        cancelId: 0
+      });
+      expect(result).toEqual({ response: 0, checkboxChecked: true });
+    });
+
+    it('returns the cancelId synchronously in showMessageBoxSync when signal is already aborted', () => {
+      const controller = new AbortController();
+      controller.abort();
+      const response = dialog.showMessageBoxSync({
+        signal: controller.signal,
+        message: 'sync aborted test',
+        buttons: ['OK', 'Cancel'],
+        cancelId: 1
+      } as any);
+      expect(response).toBe(1);
+    });
+
     it('closes message box immediately', async () => {
       const controller = new AbortController();
       const signal = controller.signal;
